@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Business 席位报价</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="app">
+      <header class="hero">
+        <img class="brand-mark" src="icons/icon-48.png" alt="" aria-hidden="true">
+        <div class="hero-copy">
+          <h1>Business 席位报价</h1>
+          <p>Standard / Premium 实时预览</p>
+        </div>
+        <span id="statusBadge" class="status-badge is-idle">待检测</span>
+      </header>
+
+      <div id="notice" class="notice" role="alert" hidden></div>
+
+      <section class="workspace-panel" aria-labelledby="workspaceLabel">
+        <div class="section-heading">
+          <label id="workspaceLabel" for="workspaceSelect">Business Workspace</label>
+          <button id="refreshButton" class="text-button" type="button">刷新</button>
+        </div>
+        <select id="workspaceSelect" disabled>
+          <option>正在读取工作区…</option>
+        </select>
+        <p id="workspaceId" class="workspace-id">请先打开 chatgpt.com 并保持登录</p>
+      </section>
+
+      <section id="loadingView" class="loading-view" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span>
+        <div>
+          <strong id="loadingTitle">正在读取登录状态</strong>
+          <p id="loadingDetail">只会调用费用预览接口，不会修改席位。</p>
+        </div>
+      </section>
+
+      <section id="resultView" class="result-view" hidden>
+        <div class="seat-strip" aria-label="当前席位">
+          <div>
+            <span>Standard</span>
+            <strong id="standardSeats">—</strong>
+          </div>
+          <div class="seat-divider" aria-hidden="true"></div>
+          <div>
+            <span>Premium</span>
+            <strong id="premiumSeats">—</strong>
+          </div>
+        </div>
+
+        <div class="price-grid">
+          <article class="price-card standard-card">
+            <div class="price-label">
+              <span class="seat-dot standard-dot" aria-hidden="true"></span>
+              Standard +1
+            </div>
+            <strong id="standardPrice" class="price">—</strong>
+            <strong id="standardRmb" class="rmb-price">人民币换算待获取</strong>
+            <span class="price-note">本账期立即应付</span>
+          </article>
+
+          <article class="price-card premium-card">
+            <div class="price-label">
+              <span class="seat-dot premium-dot" aria-hidden="true"></span>
+              Premium +1
+            </div>
+            <strong id="premiumPrice" class="price">—</strong>
+            <strong id="premiumRmb" class="rmb-price premium-rmb">人民币换算待获取</strong>
+            <span id="premiumNote" class="price-note">本账期立即应付</span>
+          </article>
+        </div>
+
+        <div id="ratePanel" class="rate-panel">
+          <span class="rate-symbol" aria-hidden="true">¥</span>
+          <div class="rate-copy">
+            <strong id="rateText">正在读取 Wise 汇率…</strong>
+            <span id="rateMeta">人民币金额仅供参考</span>
+          </div>
+          <a id="wiseLink" href="https://wise.com/zh-cn/currency-converter/" target="_blank" rel="noreferrer">Wise ↗</a>
+        </div>
+
+        <dl class="billing-list">
+          <div>
+            <dt>计费周期</dt>
+            <dd id="billingInterval">—</dd>
+          </div>
+          <div>
+            <dt>当前账期截止</dt>
+            <dd id="renewalDate">—</dd>
+          </div>
+          <div>
+            <dt>查询时间</dt>
+            <dd id="checkedAt">—</dd>
+          </div>
+        </dl>
+
+        <div class="safety-note">
+          <span aria-hidden="true">✓</span>
+          仅预览费用；不会提交购买、修改席位或保存登录凭证。
+        </div>
+
+        <button id="copyButton" class="primary-button" type="button">复制查询结果</button>
+      </section>
+
+      <footer>
+        <span>v1.0.0</span>
+        <span>仅适用于你有权限的 Workspace</span>
+      </footer>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
