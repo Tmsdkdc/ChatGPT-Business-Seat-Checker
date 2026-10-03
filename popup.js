@@ -30,6 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
     wiseLink: document.getElementById("wiseLink"),
     billingInterval: document.getElementById("billingInterval"),
     renewalDate: document.getElementById("renewalDate"),
+    remainingHours: document.getElementById("remainingHours"),
     checkedAt: document.getElementById("checkedAt"),
     copyButton: document.getElementById("copyButton"),
   });
@@ -40,6 +41,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   ui.workspaceSelect.addEventListener("change", quoteSelectedWorkspace);
   ui.copyButton.addEventListener("click", copyResult);
+
+  const remainingTimer = window.setInterval(renderRemainingTime, 1000);
+  document.addEventListener("visibilitychange", renderRemainingTime);
+  window.addEventListener("pagehide", () => window.clearInterval(remainingTimer), { once: true });
 
   discoverAndQuote();
 });
@@ -83,6 +88,8 @@ async function quoteSelectedWorkspace() {
   if (isBusy || !ui.workspaceSelect.value) return;
 
   clearNotice();
+  currentQuote = null;
+  renderRemainingTime();
   updateWorkspaceId();
   setBusy(true, "正在计算实时费用", "正在分别预览 Standard +1 与 Premium +1…");
   ui.resultView.hidden = true;
@@ -138,6 +145,7 @@ function renderQuote(quote) {
 
   ui.billingInterval.textContent = quote.billingInterval;
   ui.renewalDate.textContent = quote.renewal.formatted;
+  renderRemainingTime();
   ui.checkedAt.textContent = quote.checkedAt;
   ui.workspaceId.textContent = quote.workspace.id;
   ui.resultView.hidden = false;
@@ -320,6 +328,7 @@ function enrichWithRmb(quote, exchange) {
 
   return {
     ...quote,
+    renewal: billingTime(quote.renewal?.raw),
     standard: {
       ...quote.standard,
       rmbFormatted: standardRmb,
@@ -330,6 +339,62 @@ function enrichWithRmb(quote, exchange) {
     },
     exchange,
   };
+}
+
+// Billing timestamps may arrive as ISO strings or Unix seconds/milliseconds.
+function parseBillingTimestamp(value) {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const raw = typeof value === "string" ? value.trim() : value;
+  if (raw === "") return null;
+
+  const numeric = typeof raw === "number" || /^-?\d+(?:\.\d+)?$/.test(raw)
+    ? Number(raw)
+    : null;
+  const timestamp = numeric !== null
+    ? (Math.abs(numeric) < 1e11 ? numeric * 1000 : numeric)
+    : Date.parse(raw);
+
+  return Number.isFinite(timestamp) && Number.isFinite(new Date(timestamp).getTime())
+    ? timestamp
+    : null;
+}
+
+function billingTime(value) {
+  const timestamp = parseBillingTimestamp(value);
+  if (timestamp === null) return { formatted: "未返回有效时间", raw: "" };
+  return {
+    formatted: new Intl.DateTimeFormat("zh-CN", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).format(new Date(timestamp)) + "（北京时间）",
+    raw: new Date(timestamp).toISOString(),
+  };
+}
+
+function billingRemaining(raw, now = Date.now()) {
+  const deadline = parseBillingTimestamp(raw);
+  if (deadline === null || !Number.isFinite(now)) {
+    return { hours: null, expired: false, label: "—" };
+  }
+  const hours = Math.max(0, (deadline - now) / 3600000);
+  const expired = deadline <= now;
+  const label = expired
+    ? "0.00 H（已到期）"
+    : hours < 0.01 ? "< 0.01 H" : `${hours.toFixed(2)} H`;
+  return { hours, expired, label };
+}
+
+function renderRemainingTime() {
+  if (!ui.remainingHours) return;
+  const remaining = billingRemaining(currentQuote?.renewal?.raw);
+  ui.remainingHours.textContent = remaining.label;
+  ui.remainingHours.classList.toggle("is-expired", remaining.expired);
 }
 
 function updateWorkspaceId() {
@@ -362,6 +427,8 @@ function clearNotice() {
 
 function showError(error) {
   const message = error instanceof Error ? error.message : String(error || "未知错误");
+  currentQuote = null;
+  renderRemainingTime();
   setBusy(false);
   setStatus("检测失败", "error");
   ui.resultView.hidden = true;
@@ -420,7 +487,7 @@ async function invokePageCommand(command) {
 }
 
 async function copyResult() {
-  if (!currentQuote) return;
+  if (!currentQuote || isBusy) return;
 
   const premium = currentQuote.premium.ok
     ? currentQuote.premium.formatted
@@ -442,6 +509,7 @@ async function copyResult() {
     rateLine,
     `计费周期：${currentQuote.billingInterval}`,
     `当前账期截止：${currentQuote.renewal.formatted}`,
+    `账期剩余时间：${billingRemaining(currentQuote.renewal.raw).label}`,
     `查询时间：${currentQuote.checkedAt}`,
     "注：人民币金额按中间市场汇率估算，不含支付渠道汇差或手续费。",
   ].join("\n");
@@ -834,28 +902,6 @@ async function pageCommand(command) {
     return { amount, currency, minorUnit, formatted };
   }
 
-  function billingTime(value) {
-    const raw = firstText(value);
-    if (!raw) return { formatted: "未返回", raw: "" };
-
-    const date = new Date(raw);
-    if (Number.isNaN(date.getTime())) return { formatted: raw, raw };
-
-    return {
-      formatted: new Intl.DateTimeFormat("zh-CN", {
-        timeZone: "Asia/Shanghai",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
-      }).format(date) + "（北京时间）",
-      raw,
-    };
-  }
-
   function checkedTime() {
     return new Intl.DateTimeFormat("zh-CN", {
       timeZone: "Asia/Shanghai",
@@ -976,8 +1022,8 @@ async function pageCommand(command) {
     }
 
     const renewal = renewalResult.status === "fulfilled"
-      ? billingTime(renewalResult.value?.renewal_date)
-      : { formatted: "未返回", raw: "" };
+      ? { raw: renewalResult.value?.renewal_date ?? "" }
+      : { raw: "" };
 
     return {
       ok: true,

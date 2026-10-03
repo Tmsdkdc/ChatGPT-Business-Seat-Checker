@@ -447,6 +447,16 @@ select:disabled {
   overflow-wrap: anywhere;
 }
 
+.billing-list .remaining-hours {
+  color: var(--green-dark);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.billing-list .remaining-hours.is-expired {
+  color: var(--danger);
+}
+
 .safety-note {
   display: flex;
   align-items: flex-start;

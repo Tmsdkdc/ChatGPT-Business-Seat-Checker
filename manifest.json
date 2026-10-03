@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "ChatGPT Business 席位报价",
   "short_name": "席位报价",
-  "version": "1.0.0",
-  "description": "预览 ChatGPT Business Standard / Premium 新增席位费用，并按 Wise 中间市场汇率换算人民币。",
+  "version": "1.0.1",
+  "description": "预览 ChatGPT Business Standard / Premium 新增席位费用，显示本账期剩余小时，并按 Wise 中间市场汇率换算人民币。",
   "minimum_chrome_version": "102",
   "permissions": [
     "activeTab",
